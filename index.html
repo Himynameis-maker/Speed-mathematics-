@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>数学 計算ドリル</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2421;--sub:#66706b;--line:#d9ded9;--acc:#1f6f5c;--accsoft:#e3f1ec;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#141817;--card:#1d2321;--ink:#e8ede9;--sub:#98a39d;--line:#34403b;--acc:#58c2a4;--accsoft:#1f3a32}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;max-width:100%;overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;line-height:1.7;line-break:strict;overflow-wrap:break-word;word-break:normal;min-height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.app{flex:1;width:100%;max-width:720px;margin:0 auto;padding:8px 6px 0}
+.prog{display:flex;align-items:center;gap:10px;padding:0 4px 8px;font-size:.9rem;color:var(--sub)}
+.bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.stage{display:grid;grid-template-columns:34px minmax(0,1fr) 34px;gap:4px;min-height:calc(100dvh - 110px)}
+.nav{border:1px solid var(--line);background:var(--card);color:var(--acc);font-size:1.8rem;border-radius:10px;cursor:pointer;padding:0;touch-action:manipulation}
+.nav:disabled{opacity:.25;cursor:default}
+.nav:not(:disabled):active{background:var(--accsoft)}
+.view{align-self:center;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 12px;min-width:0}
+.tag{display:inline-block;font-size:.78rem;color:var(--acc);background:var(--accsoft);border-radius:6px;padding:1px 8px;margin:0 6px 6px 0}
+.no{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+.q{margin:6px 0;font-size:1.02rem;line-height:1.9}
+.q .katex{display:inline-block;white-space:nowrap;font-size:1.05em}
+.m{overflow-x:auto;overflow-y:hidden;max-width:100%;-webkit-overflow-scrolling:touch}
+.m .katex-display{margin:.5em 0}
+.m .katex{font-size:1.15em}
+.ans{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.ans b{color:var(--acc);font-size:.9rem}
+.fin{text-align:center;padding:24px 12px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:10px;background:var(--acc);color:#fff;padding:12px 20px;cursor:pointer;touch-action:manipulation}
+@media (prefers-color-scheme:dark){.btn{color:#0b1512}}
+.btn.ghost{background:var(--card);color:var(--acc);border:1px solid var(--line)}
+#answers .card{margin-bottom:10px}
+.bk{text-align:center;margin:8px 0 12px}
+.foot{display:flex;justify-content:flex-end;padding:2px 8px 4px}
+.mini{font:inherit;font-size:.72rem;border:1px solid var(--line);background:transparent;color:var(--sub);border-radius:6px;padding:2px 8px;cursor:pointer}
+.vh{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:pre}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="prog"><span id="pos"></span><div class="bar"><i id="fill"></i></div></div>
+  <section id="quiz" class="stage">
+    <button id="prev" class="nav" type="button" aria-label="前の問題">‹</button>
+    <div id="view" class="view"></div>
+    <button id="next" class="nav" type="button" aria-label="次の問題">›</button>
+  </section>
+  <section id="answers" hidden></section>
+</main>
+<footer class="foot"><button id="copy" class="mini" type="button">問題をコピー</button></footer>
+<pre id="plain" class="vh"></pre>
+
+<script>
+/* ===== 問題データ（編集はここだけ。仕様は README.md 参照）=====
+   c:科目 t:単元 q:問題文(インライン数式は$...$) m:式(LaTeXのみ・任意) a:答え(LaTeXのみ) */
+const R = String.raw;
+const PROBLEMS = [
+  {c:'数学IA', t:'展開', q:R`次の式を展開せよ。`, m:R`(x+3)(x-5)`, a:R`x^2-2x-15`},
+  {c:'数学IA', t:'因数分解', q:R`次の式を因数分解せよ。`, m:R`x^2-5x+6`, a:R`(x-2)(x-3)`},
+  {c:'数学IA', t:'有理化', q:R`分母を有理化せよ。`, m:R`\frac{1}{\sqrt{3}-\sqrt{2}}`, a:R`\sqrt{3}+\sqrt{2}`},
+  {c:'数学IA', t:'2次方程式', q:R`次の方程式を解け。`, m:R`x^2-4x-5=0`, a:R`x=-1,\ 5`},
+  {c:'数学IA', t:'2次関数', q:R`次の2次関数のグラフの頂点の座標を求めよ。`, m:R`y=x^2-6x+4`, a:R`(3,\ -5)`},
+  {c:'数学IA', t:'2次不等式', q:R`次の不等式を解け。`, m:R`x^2-x-6<0`, a:R`-2<x<3`},
+  {c:'数学IA', t:'余弦定理', q:R`△ABC において $b=3,\ c=5,\ A=60^\circ$ のとき、辺 $a$ の長さを求めよ。`, a:R`a=\sqrt{19}`},
+  {c:'数学IA', t:'組合せ', q:R`次の値を求めよ。`, m:R`{}_8\mathrm{C}_3`, a:R`56`},
+  {c:'数学IA', t:'確率', q:R`大小2個のサイコロを同時に投げるとき、出た目の和が7になる確率を求めよ。`, a:R`\dfrac{1}{6}`},
+  {c:'数学IA', t:'データの分析', q:R`次のデータの分散を求めよ。`, m:R`3,\ 5,\ 7,\ 9,\ 11`, a:R`8`},
+  {c:'数学IIB', t:'二項定理', q:R`$(x+2)^4$ の展開式における $x^2$ の係数を求めよ。`, a:R`24`},
+  {c:'数学IIB', t:'複素数', q:R`次を計算せよ。`, m:R`(2+3i)(1-i)`, a:R`5+i`},
+  {c:'数学IIB', t:'解と係数の関係', q:R`2次方程式 $x^2-3x+1=0$ の2つの解を $\alpha,\ \beta$ とするとき、$\alpha^2+\beta^2$ の値を求めよ。`, a:R`7`},
+  {c:'数学IIB', t:'対数', q:R`次の値を求めよ。`, m:R`\log_2 12-\log_2 3`, a:R`2`},
+  {c:'数学IIB', t:'三角関数', q:R`$0\le\theta<2\pi$ のとき、次の方程式を解け。`, m:R`2\sin\theta=1`, a:R`\theta=\dfrac{\pi}{6},\ \dfrac{5\pi}{6}`},
+  {c:'数学IIB', t:'微分', q:R`関数 $f(x)=x^3-3x^2+2$ の導関数 $f'(x)$ を求めよ。`, a:R`3x^2-6x`},
+  {c:'数学IIB', t:'積分', q:R`次の定積分を求めよ。`, m:R`\int_0^2 (3x^2-2x)\,dx`, a:R`4`},
+  {c:'数学IIB', t:'等差数列', q:R`初項3、公差4の等差数列 $\{a_n\}$ について、$a_{10}$ と初項から第10項までの和 $S_{10}$ を求めよ。`, a:R`\begin{gathered}a_{10}=39\\ S_{10}=210\end{gathered}`},
+  {c:'数学IIB', t:'等比数列', q:R`初項2、公比3の等比数列の、初項から第5項までの和を求めよ。`, a:R`242`},
+  {c:'数学IIB', t:'ベクトル', q:R`$\vec{a}=(1,\ 2),\ \vec{b}=(3,\ -1)$ のとき、内積 $\vec{a}\cdot\vec{b}$ と $|\vec{a}+\vec{b}|$ を求めよ。`, a:R`\begin{gathered}\vec{a}\cdot\vec{b}=1\\ |\vec{a}+\vec{b}|=\sqrt{17}\end{gathered}`}
+];
+/* ===== ここから下はUIロジック（通常は触らない）===== */
+const N = PROBLEMS.length;
+const $ = id => document.getElementById(id);
+let i = 0, shown = false;
+
+function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+function math(src){ const d = el('div','m',src); d.dataset.tex = src; return d; }
+function typeset(root){
+  if(!window.katex) return;
+  root.querySelectorAll('[data-tex]').forEach(e => katex.render(e.dataset.tex, e, {displayMode:true, throwOnError:false}));
+  if(window.renderMathInElement) root.querySelectorAll('.q').forEach(e => renderMathInElement(e, {delimiters:[{left:'$',right:'$',display:false}], throwOnError:false}));
+}
+function card(p, n, withAns){
+  const c = el('article','card');
+  c.append(el('span','tag',p.c), el('span','tag',p.t), el('p','no','第' + (n+1) + '問'), el('p','q',p.q));
+  if(p.m) c.append(math(p.m));
+  if(withAns){ const a = el('div','ans'); a.append(el('b',null,'解答'), math(p.a)); c.append(a); }
+  return c;
+}
+function plain(withAns){
+  const L = ['# 数学IA・IIB 計算問題 全' + N + '問（$...$ はLaTeX数式）'];
+  PROBLEMS.forEach((p,n) => {
+    L.push('', 'Q' + (n+1) + ' [' + p.c + ' / ' + p.t + ']', p.q);
+    if(p.m) L.push('式: $' + p.m + '$');
+    if(withAns) L.push('答: $' + p.a.replace(/\n/g,' ') + '$');
+  });
+  return L.join('\n');
+}
+function syncPlain(){ $('plain').textContent = plain(shown); $('copy').textContent = shown ? '問題と解答をコピー' : '問題をコピー'; }
+
+function show(){
+  const v = $('view'); v.replaceChildren();
+  if(i < N){ v.append(card(PROBLEMS[i], i, false)); }
+  else {
+    const f = el('div','card fin'); f.append(el('p','q','全' + N + '問おわりました。'));
+    const b = el('button','btn','解答を表示'); b.type = 'button'; b.onclick = showAnswers; f.append(b); v.append(f);
+  }
+  $('prev').disabled = i === 0; $('next').disabled = i >= N;
+  $('pos').textContent = i < N ? (i+1) + ' / ' + N : '終了';
+  $('fill').style.width = (Math.min(i+1, N) / N * 100) + '%';
+  typeset(v);
+}
+function backBtn(){ const w = el('div','bk'); const b = el('button','btn ghost','最初に戻る'); b.type = 'button'; b.onclick = restart; w.append(b); return w; }
+function showAnswers(){
+  shown = true; syncPlain();
+  const s = $('answers'); s.replaceChildren(backBtn());
+  PROBLEMS.forEach((p,n) => s.append(card(p, n, true)));
+  s.append(backBtn());
+  $('quiz').hidden = true; s.hidden = false; typeset(s); window.scrollTo(0,0);
+}
+function restart(){ shown = false; syncPlain(); i = 0; $('answers').hidden = true; $('quiz').hidden = false; show(); window.scrollTo(0,0); }
+
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); }
+  catch(e){ const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  $('prev').onclick = () => { if(i > 0){ i--; show(); } };
+  $('next').onclick = () => { if(i < N){ i++; show(); } };
+  $('copy').onclick = async () => {
+    const b = $('copy'), old = b.textContent; await copyText(plain(shown)); b.textContent = 'コピーしました';
+    setTimeout(() => { b.textContent = old; }, 1500);
+  };
+  document.addEventListener('keydown', e => {
+    if($('quiz').hidden) return;
+    if(e.key === 'ArrowRight') $('next').click(); else if(e.key === 'ArrowLeft') $('prev').click();
+  });
+  syncPlain(); show();
+});
+</script>
+</body>
+</html>
